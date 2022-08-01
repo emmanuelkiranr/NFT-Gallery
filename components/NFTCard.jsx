@@ -1,3 +1,5 @@
+import { FiCopy } from "react-icons/fi";
+
 export const NFTCard = ({ nft }) => {
   // props is used to pass values from parent component eg props.variablename
   // object deconstruction {nft} - later on we can pass an nft as a prop and access it directly
@@ -15,11 +17,15 @@ export const NFTCard = ({ nft }) => {
         <p className="text-gray-600">
           {nft.id.tokenId.substr(nft.id.tokenId.length - 4)}
         </p>
-        <p className="text-gray-600">
-          {`${nft.contract.address.substr(
+        <p
+          className="text-gray-600 cursor-pointer"
+          onClick={() => navigator.clipboard.writeText(nft.contract.address)}
+        >
+          <FiCopy />
+          {/* {`${nft.contract.address.substr(
             0,
             5
-          )}...${nft.contract.address.substr(nft.contract.address.length - 4)}`}
+          )}...${nft.contract.address.substr(nft.contract.address.length - 4)}`} */}
         </p>
       </div>
       <div className="flex-grow mt-2">
