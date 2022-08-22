@@ -1,133 +1,153 @@
-import Head from "next/head";
-import Image from "next/image";
-import React, { useState } from "react";
-import { NFTCard } from "../components/NFTCard";
+import { useState } from "react";
+import { Card } from "../components/Card";
 
-const Home = () => {
-  const [wallet, setWalletAddress] = useState("");
-  const [collection, setCollectionAddress] = useState("");
-  const [NFTs, setNFTs] = useState([]);
-  const [fetchForCollection, setFetchForCollection] = useState(false);
+const home = () => {
+  const [address, setAddress] = useState("");
+  const [collection, setCollection] = useState("");
+  const [check, setCheck] = useState(false);
+  const [NFTs, setNfts] = useState([]); // since nfts fetched will be an array
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageKeys, setPageKeys] = useState([""]);
 
-  const fetchNFTs = async () => {
-    let nfts; // The nfts will be into an array. So we create a state variable to store this array
-    console.log("fetching nfts...");
+  const getNftsForOwner = async () => {
+    let nfts;
 
-    const api_key = "tHF0lIQAFOnA82CcEx3zAimW9cKAAliS";
-    const baseURL = `https://eth-mainnet.g.alchemy.com/v2/${api_key}/getNFTs/`; // getNFTs endpoint
+    /* nfts = fetch(); needs fetch url and request option
+    fetchURL needs base url and owner address
+    baseURL = api endpoint */
 
-    // check if we want to look for nfts owned by an address or filter by the collection
+    var requestOptions = {
+      method: "GET",
+    };
+
+    const baseURL = `https://eth-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_API_KEY}/getNFTs/`;
+
     if (!collection.length) {
-      // if the collection doesn't contain any words aka the collectin address means we are filtering it with the address aka the wallet address
+      const fetchURL = `${baseURL}?owner=${address}`;
 
-      /* Then we fetch the collection with the owner address using fetch() - helps us fetch resources from other sources in this case 
-      the RESTful api. Inside fetch we have few paramaters*/
-
-      var requestOptions = {
-        // This will tell fetch() that our request will be a method GET
-        method: "GET",
-      };
-
-      const fetchURL = `${baseURL}?owner=${wallet}`;
-
-      //once we fetch() we do then(data => data.json) cause we get a string version of our data which we need to bring it back to json. So we use
-      // json() which trasform json stringified data into actual json
       nfts = await fetch(fetchURL, requestOptions).then((data) => data.json());
     } else {
-      console.log("fetching nfts of collection owned by an address");
-      // fetch all nfts owned by wallet belonging to collection address
-      const fetchURL = `${baseURL}?owner=${wallet}&contractAddresses%5B%5D=${collection}`;
+      const fetchURL = `${baseURL}?owner=${address}&contractAddresses%5B%5D=${collection}`;
       nfts = await fetch(fetchURL, requestOptions).then((data) => data.json());
+      console.log(nfts);
     }
-
     if (nfts) {
-      console.log(nfts); // This returns us details of all the nfts like tokenURI, media and so on of that address
-      setNFTs(nfts.ownedNfts); // Since we only need ownedNFTs from the json
+      setNfts(nfts.ownedNfts);
     }
   };
 
-  const fetchNFTsForCollection = async () => {
+  const getNftsForCollection = async (startToken = "", pageIndex = 0) => {
+    // default parameter value
     if (collection.length) {
       var requestOptions = {
         method: "GET",
       };
-      const api_key = "tHF0lIQAFOnA82CcEx3zAimW9cKAAliS";
-      const baseURL = `https://eth-mainnet.g.alchemy.com/v2/${api_key}/getNFTsForCollection/`; // getNFTsForCollection endpoint
-
-      const fetchURL = `${baseURL}?contractAddress=${collection}&withMetadata=${true}`;
-      /* By setting withMetadata parameter to true it returns the nft metadata[like image attributes etc] else only the tokenIds.
-      And we would need to use another endpoint for fetching the metadata ie getNFTMetadata which uses contractAddress and tokenId as parameters */
-
+      const baseURL = `https://eth-mainnet.g.alchemy.com/nft/v2/${process.env.NEXT_PUBLIC_API_KEY}/getNFTsForCollection`;
+      const fetchURL = `${baseURL}?contractAddress=${collection}&withMetadata=${true}&startToken=${startToken}`;
       const nfts = await fetch(fetchURL, requestOptions).then((data) =>
         data.json()
       );
+
       if (nfts) {
-        console.log("NFTs in collection", nfts);
-        setNFTs(nfts.nfts); // cause we only need the nfts array from the json
+        if (nfts.nextToken) {
+          setPageKeys((prevKeys) => {
+            const newKeys = [...prevKeys];
+            newKeys[pageIndex + 1] = nfts.nextToken;
+            return newKeys;
+          });
+        }
+        console.log(nfts.nfts);
+        setNfts(nfts.nfts);
       }
     }
   };
 
+  const changePage = async (pageIndex) => {
+    try {
+      getNftsForCollection(pageKeys[pageIndex], pageIndex);
+      setCurrentPage(pageIndex);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center py-8 gap-y-3">
-      <div className="flex flex-col w-full justify-center items-center gap-y-2">
-        <input
-          disabled={fetchForCollection} // this field will be disabled if we are only fetching collection by setting the checked value to true
-          className="w-2/5 bg-slate-100 py-2 px-2 rounded-lg text-gray-800 focus:outline-blue-300 disabled:bg-slate-50 disabled:text-gray-50"
-          onChange={(e) => {
-            setWalletAddress(e.target.value);
-          }}
-          value={wallet}
-          type="text"
-          placeholder="Enter your wallet address"
-        />
-        <br />
-        <input
-          className="w-2/5 bg-slate-100 py-2 px-2 rounded-lg text-gray-800 focus:outline-blue-300 disabled:bg-slate-50 disabled:text-gray-50"
-          onChange={(e) => {
-            setCollectionAddress(e.target.value);
-          }}
-          value={collection}
-          type="text"
-          placeholder="Enter the collection address"
-        />
-        <br />
-        <label className="text-gray-600 ">
+    <>
+      <div className="flex flex-col items-center justify-center py-8 gap-y-3">
+        <div className="flex flex-col w-full justify-center items-center gap-y-2">
           <input
-            className="mr-2"
-            onChange={(e) => {
-              setFetchForCollection(e.target.checked); // returns true of false based on checked or not
-            }} // Now we need to check inside our button if this prop is true or false if true then on clicking button we need to execute fetchNFTsForCollection
-            type="checkbox"
+            onChange={(event) => {
+              setAddress(event.target.value);
+            }}
+            value={address}
+            disabled={check}
+            className="w-2/5 bg-slate-100 py-2 px-2 rounded-lg text-gray-800 focus:outline-blue-300 disabled:bg-slate-50 disabled:text-gray-50"
+            type="text"
+            placeholder="enter the owner address"
           />
-          Fetch for collection
-        </label>
-        <br />
-        <button
-          className={
-            "disabled:bg-slate-500 text-white bg-blue-400 px-4 py-2 mt-3 rounded-sm w-1/5"
-          }
-          onClick={() => {
-            fetchForCollection ? fetchNFTsForCollection() : fetchNFTs();
-          }}
-        >
-          Submit
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-y-12 mt-4 w-5/6 gap-x-2 justify-center">
-        {
-          // check if there is any NFT fetched using NFTs.length will return true if its value is more than 0
-          // then render an nft card for every NFT fetched using mapping
-          // Since NFTs is an array and arrays in js has this fn called map - The map fn perform some operation on every element of that array
-          // every element of that array will be called nft so for every nft in the NFTs array run some operation
-          NFTs.length &&
+          <br />
+          <input
+            onChange={(event) => {
+              setCollection(event.target.value);
+            }}
+            value={collection}
+            className="w-2/5 bg-slate-100 py-2 px-2 rounded-lg text-gray-800 focus:outline-blue-300 disabled:bg-slate-50 disabled:text-gray-50"
+            type="text"
+            placeholder="enter the collection address"
+          />
+          <br />
+          <label className="text-gray-600">
+            <input
+              onChange={(event) => {
+                setCheck(event.target.checked);
+              }}
+              type="checkbox"
+              className="mr-2"
+            />
+            Fetch for collection
+          </label>
+          <br />
+          <button
+            className={
+              "disabled:bg-slate-500 text-white bg-blue-400 px-4 py-2 mt-3 rounded-sm w-1/5"
+            }
+            onClick={() => {
+              check ? getNftsForCollection() : getNftsForOwner();
+            }}
+          >
+            submit
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-y-12 mt-4 w-5/6 gap-x-2 justify-center">
+          {NFTs.length &&
             NFTs.map((nft) => {
-              return <NFTCard nft={nft}></NFTCard>; // we are passing the value nft (which is an element in the NFTs array) to object deconstruction {nft}
-            })
-        }
+              return (
+                <>
+                  <Card nft={nft} />
+                </>
+              );
+            })}
+          {NFTs.length && check ? (
+            <div className="flex w-full justify-center ">
+              <button
+                className="mr-4"
+                onClick={() => changePage(currentPage - 1)}
+              >
+                previous
+              </button>
+              {currentPage + 1}
+              <button
+                className="ml-4"
+                onClick={() => changePage(currentPage + 1)}
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
-export default Home;
+export default home;
